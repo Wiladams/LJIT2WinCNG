@@ -2,6 +2,7 @@ local ffi = require "ffi"
 local C = ffi.C
 
 require "WTypes"
+
 local kernel32 = ffi.load("kernel32");
 
 --[[
@@ -32,7 +33,7 @@ local CP_THREAD_ACP	= 3		-- current thread's ANSI code page
 local CP_SYMBOL		= 42	-- SYMBOL translations
 
 
-function AnsiToUnicode16(in_Src)
+local function AnsiToUnicode16(in_Src)
 	local nsrcBytes = #in_Src
 
 	-- find out how many characters needed
@@ -51,22 +52,13 @@ function AnsiToUnicode16(in_Src)
 
 --print("charswritten: ", charswritten)
 
-	return ffi.string(buff, charswritten*2);
+	return ffi.string(buff, (charswritten*2)+1);
 end
 
-
---local L = AnsiToUnicode16;
---local str = L"this is an ansii string"
 
 return {
 	Lib = kernel32,
 
 	-- Local functions
-	GetPerformanceFrequency = GetPerformanceFrequency,
-	GetPerformanceCounter = GetPerformanceCounter,
-	GetCurrentTickTime = GetCurrentTickTime,
-	GetProcAddress = GetProcAddress,
-	GetCurrentDirectory = GetCurrentDirectory,
-
 	AnsiToUnicode16 = AnsiToUnicode16,
 	}

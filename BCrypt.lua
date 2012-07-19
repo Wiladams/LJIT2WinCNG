@@ -1,15 +1,4 @@
---[[
-//+---------------------------------------------------------------------------
-//
-//  Microsoft Windows
-//  Copyright (C) Microsoft Corporation, 2004.
-//
-//  File:       bcrypt.h
-//
-//  Contents:   Cryptographic Primitive API Prototypes and Definitions
-//
-//----------------------------------------------------------------------------
---]]
+
 
 local ffi = require "ffi"
 local bit = require "bit"
@@ -1209,3 +1198,20 @@ BCrypt.BCryptAlgorithm = BCryptAlgorithm;
 
 return BCrypt
 
+--[[
+
+	This file was strongly modified from the
+	Windows SDK file bcrypt.h, which contained the
+	following copyright.
+
+//+---------------------------------------------------------------------------
+//
+//  Microsoft Windows
+//  Copyright (C) Microsoft Corporation, 2004.
+//
+//  File:       bcrypt.h
+//
+//  Contents:   Cryptographic Primitive API Prototypes and Definitions
+//
+//----------------------------------------------------------------------------
+--]]
