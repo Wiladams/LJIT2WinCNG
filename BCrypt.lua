@@ -1280,37 +1280,6 @@ NTSTATUS BCryptGetFipsAlgorithmMode(BOOLEAN *pfEnabled);
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ffi.cdef[[
 typedef struct BCryptAlgorithm {
 	BCRYPT_ALG_HANDLE Handle;
@@ -1443,7 +1412,7 @@ return BCrypt
 
 --[[
 
-	This file was strongly modified from the
+	The core definitions in this file come from the original
 	Windows SDK file bcrypt.h, which contained the
 	following copyright.
 
