@@ -4,32 +4,23 @@ local ffi = require "ffi"
 
 local BCrypt = require "BCrypt"
 
---[[
-function GetAlgorithmProvider(algoid, impl)
-	local lphAlgo = ffi.new("BCRYPT_ALG_HANDLE[1]")
 
-print("Size: ", ffi.sizeof(lphAlgo));
-	local algoidptr = ffi.cast("const uint16_t *", algoid)
 
-	local status = BCrypt.Lib.BCryptOpenAlgorithmProvider(lphAlgo, algoidptr, impl, 0);
+function test_RngAlgorithm()
+	local rngalgo = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_ALGORITHM)
 
-	if not BCrypt.BCRYPT_SUCCESS(status) then
-		print("status: ", status);
-		return nil
-	end
-
-	return lphAlgo[0]
+	print("Algo: ",rngalgo);
 end
---]]
-
-local algo = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_ALGORITHM)
-
-print("Algo: ",algo);
-
---local rngHandle = GetAlgorithmProvider(BCrypt.BCRYPT_RNG_ALGORITHM)
 
 --print("Algorithm Handle: ", rngHandle);
 
+local function bintohex(bytes, len)
+	local str = ffi.string(bytes, len)
+
+	return (str:gsub('(.)', function(c)
+		return string.format('%02x', string.byte(c))
+	end))
+end
 
 function test_RandomBytes()
 	for j=1,5 do
@@ -46,4 +37,25 @@ function test_RandomBytes()
 	end
 end
 
-test_RandomBytes();
+function test_sha1_hash()
+	local sh1, err = BCrypt.SHA1Algorithm:CreateHash();
+
+print("SHA1, status: ", sh1, tonumber(status));
+
+	--print(sh1:GetHashLength());
+
+	local outlen = sh1:GetHashDigestLength();
+	local outbuff = ffi.new("uint8_t[?]", outlen);
+
+	sh1:HashMore("Take this as the first input to be hashed");
+	sh1:Finish(outbuff, outlen);
+
+	local hex = bintohex(outbuff, outlen);
+
+	print(hex);
+end
+
+
+--test_RandomBytes();
+
+test_sha1_hash();

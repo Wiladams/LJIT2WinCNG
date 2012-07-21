@@ -52,7 +52,7 @@ local function AnsiToUnicode16(in_Src)
 
 --print("charswritten: ", charswritten)
 
-	return ffi.string(buff, (charswritten*2)+1);
+	return buff;
 end
 
 

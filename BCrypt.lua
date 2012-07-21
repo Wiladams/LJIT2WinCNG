@@ -11,737 +11,6 @@ local L = k32.AnsiToUnicode16
 local BCLib = ffi.load("Bcrypt.dll");
 
 
--- From BCrypt.h
-
-ffi.cdef[[
-	typedef uint32_t	NTSTATUS;
-	typedef NTSTATUS *PNTSTATUS;
-]]
-
-
-
-
-
-ffi.cdef[[
-//
-// BCrypt structs
-//
-
-typedef struct __BCRYPT_KEY_LENGTHS_STRUCT
-{
-    ULONG   dwMinLength;
-    ULONG   dwMaxLength;
-    ULONG   dwIncrement;
-} BCRYPT_KEY_LENGTHS_STRUCT;
-
-typedef BCRYPT_KEY_LENGTHS_STRUCT BCRYPT_AUTH_TAG_LENGTHS_STRUCT;
-
-typedef struct _BCRYPT_OID
-{
-    ULONG   cbOID;
-    PUCHAR  pbOID;
-} BCRYPT_OID;
-
-typedef struct _BCRYPT_OID_LIST
-{
-    ULONG       dwOIDCount;
-    BCRYPT_OID  *pOIDs;
-} BCRYPT_OID_LIST;
-
-typedef struct _BCRYPT_PKCS1_PADDING_INFO
-{
-    LPCWSTR pszAlgId;
-} BCRYPT_PKCS1_PADDING_INFO;
-
-typedef struct _BCRYPT_PSS_PADDING_INFO
-{
-    LPCWSTR pszAlgId;
-    ULONG   cbSalt;
-} BCRYPT_PSS_PADDING_INFO;
-
-typedef struct _BCRYPT_OAEP_PADDING_INFO
-{
-    LPCWSTR pszAlgId;
-    PUCHAR   pbLabel;
-    ULONG   cbLabel;
-} BCRYPT_OAEP_PADDING_INFO;
-
-
-
-
-typedef struct _BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
-{
-    ULONG       cbSize;
-    ULONG       dwInfoVersion;
-    PUCHAR      pbNonce;
-    ULONG       cbNonce;
-    PUCHAR      pbAuthData;
-    ULONG       cbAuthData;
-    PUCHAR      pbTag;
-    ULONG       cbTag;
-    PUCHAR      pbMacContext;
-    ULONG       cbMacContext;
-    ULONG       cbAAD;
-    ULONGLONG   cbData;
-    ULONG       dwFlags;
-} BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO, *PBCRYPT_AUTHENTICATED_CIPHER_MODE_INFO;
-
-
-
-
-
-typedef struct _BCryptBuffer {
-    ULONG   cbBuffer;             // Length of buffer, in bytes
-    ULONG   BufferType;           // Buffer type
-    PVOID   pvBuffer;             // Pointer to buffer
-} BCryptBuffer, * PBCryptBuffer;
-
-typedef struct _BCryptBufferDesc {
-    ULONG   ulVersion;            // Version number
-    ULONG   cBuffers;             // Number of buffers
-    PBCryptBuffer pBuffers;       // Pointer to array of buffers
-} BCryptBufferDesc, * PBCryptBufferDesc;
-
-
-//
-// Primitive handles
-//
-
-typedef PVOID BCRYPT_HANDLE;
-typedef PVOID BCRYPT_ALG_HANDLE;
-typedef PVOID BCRYPT_KEY_HANDLE;
-typedef PVOID BCRYPT_HASH_HANDLE;
-typedef PVOID BCRYPT_SECRET_HANDLE;
-
-
-
-
-
-typedef struct _BCRYPT_KEY_BLOB
-{
-    ULONG   Magic;
-} BCRYPT_KEY_BLOB;
-
-typedef struct _BCRYPT_RSAKEY_BLOB
-{
-    ULONG   Magic;
-    ULONG   BitLength;
-    ULONG   cbPublicExp;
-    ULONG   cbModulus;
-    ULONG   cbPrime1;
-    ULONG   cbPrime2;
-} BCRYPT_RSAKEY_BLOB;
-
-typedef struct _BCRYPT_ECCKEY_BLOB
-{
-    ULONG   dwMagic;
-    ULONG   cbKey;
-} BCRYPT_ECCKEY_BLOB, *PBCRYPT_ECCKEY_BLOB;
-
-typedef struct _BCRYPT_DH_KEY_BLOB
-{
-    ULONG   dwMagic;
-    ULONG   cbKey;
-} BCRYPT_DH_KEY_BLOB, *PBCRYPT_DH_KEY_BLOB;
-
-typedef struct _BCRYPT_DH_PARAMETER_HEADER
-{
-    ULONG           cbLength;
-    ULONG           dwMagic;
-    ULONG           cbKeyLength;
-} BCRYPT_DH_PARAMETER_HEADER;
-
-typedef struct _BCRYPT_DSA_KEY_BLOB
-{
-    ULONG   dwMagic;
-    ULONG   cbKey;
-    UCHAR   Count[4];
-    UCHAR   Seed[20];
-    UCHAR   q[20];
-} BCRYPT_DSA_KEY_BLOB, *PBCRYPT_DSA_KEY_BLOB;
-
-typedef struct _BCRYPT_KEY_DATA_BLOB_HEADER
-{
-    ULONG   dwMagic;
-    ULONG   dwVersion;
-    ULONG   cbKeyData;
-} BCRYPT_KEY_DATA_BLOB_HEADER, *PBCRYPT_KEY_DATA_BLOB_HEADER;
-
-typedef struct _BCRYPT_DSA_PARAMETER_HEADER
-{
-    ULONG           cbLength;
-    ULONG           dwMagic;
-    ULONG           cbKeyLength;
-    UCHAR           Count[4];
-    UCHAR           Seed[20];
-    UCHAR           q[20];
-} BCRYPT_DSA_PARAMETER_HEADER;
-
-
-//
-// Primitive algorithm provider functions.
-//
-
-NTSTATUS BCryptOpenAlgorithmProvider(BCRYPT_ALG_HANDLE   *phAlgorithm,
-	LPCWSTR pszAlgId,
-	LPCWSTR pszImplementation,
-	ULONG   dwFlags);
-
-
-
-// USE EXTREME CAUTION: editing comments that contain "certenrolls_*" tokens
-// could break building CertEnroll idl files:
-// certenrolls_begin -- BCRYPT_ALGORITHM_IDENTIFIER
-typedef struct _BCRYPT_ALGORITHM_IDENTIFIER
-{
-    LPWSTR  pszName;
-    ULONG   dwClass;
-    ULONG   dwFlags;
-
-} BCRYPT_ALGORITHM_IDENTIFIER;
-// certenrolls_end
-
-
-NTSTATUS BCryptEnumAlgorithms(
-        ULONG   dwAlgOperations,
-       ULONG   *pAlgCount,
-       BCRYPT_ALGORITHM_IDENTIFIER **ppAlgList,
-        ULONG   dwFlags);
-
-typedef struct _BCRYPT_PROVIDER_NAME
-{
-    LPWSTR  pszProviderName;
-} BCRYPT_PROVIDER_NAME;
-
-
-NTSTATUS BCryptEnumProviders(
-	LPCWSTR pszAlgId,
-	ULONG   *pImplCount,
-	BCRYPT_PROVIDER_NAME    **ppImplList,
-	ULONG   dwFlags);
-
-NTSTATUS BCryptGetProperty(BCRYPT_HANDLE   hObject,
-	LPCWSTR pszProperty,
-    PUCHAR   pbOutput,
-	ULONG   cbOutput,
-	ULONG   *pcbResult,
-	ULONG   dwFlags);
-
-NTSTATUS BCryptSetProperty(
-    BCRYPT_HANDLE   hObject,
-	LPCWSTR pszProperty,
-    PUCHAR   pbInput,
-	ULONG   cbInput,
-	ULONG   dwFlags);
-
-NTSTATUS BCryptCloseAlgorithmProvider(BCRYPT_ALG_HANDLE   hAlgorithm, ULONG   dwFlags);
-
-void BCryptFreeBuffer(PVOID   pvBuffer);
-
-
-//
-// Primitive encryption functions.
-//
-
-NTSTATUS BCryptGenerateSymmetricKey(BCRYPT_ALG_HANDLE   hAlgorithm,
-	BCRYPT_KEY_HANDLE   *phKey,
-    PUCHAR   pbKeyObject,
-    ULONG   cbKeyObject,
-    PUCHAR   pbSecret,
-    ULONG   cbSecret,
-    ULONG   dwFlags);
-
-NTSTATUS BCryptGenerateKeyPair(BCRYPT_ALG_HANDLE   hAlgorithm,
-       BCRYPT_KEY_HANDLE   *phKey,
-        ULONG   dwLength,
-        ULONG   dwFlags);
-
-NTSTATUS BCryptEncrypt(BCRYPT_KEY_HANDLE hKey,
-    PUCHAR   pbInput,
-	ULONG   cbInput,
-	void    *pPaddingInfo,
-    PUCHAR   pbIV,
-	ULONG   cbIV,
-    PUCHAR   pbOutput,
-	ULONG   cbOutput,
-	ULONG   *pcbResult,
-	ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptDecrypt(BCRYPT_KEY_HANDLE   hKey,
-    PUCHAR   pbInput,
-	ULONG   cbInput,
-	void    *pPaddingInfo,
-    PUCHAR   pbIV,
-	ULONG   cbIV,
-    PUCHAR   pbOutput,
-	ULONG   cbOutput,
-	ULONG   *pcbResult,
-	ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptExportKey(BCRYPT_KEY_HANDLE   hKey,
-	BCRYPT_KEY_HANDLE   hExportKey,
-	LPCWSTR pszBlobType,
-    PUCHAR   pbOutput,
-	ULONG   cbOutput,
-	ULONG   *pcbResult,
-	ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptImportKey(BCRYPT_ALG_HANDLE hAlgorithm,
-	BCRYPT_KEY_HANDLE hImportKey,
-	LPCWSTR pszBlobType,
-	BCRYPT_KEY_HANDLE *phKey,
-    PUCHAR   pbKeyObject,
-	ULONG   cbKeyObject,
-    PUCHAR   pbInput,
-	ULONG   cbInput,
-	ULONG   dwFlags);
-
-
-NTSTATUS BCryptImportKeyPair(BCRYPT_ALG_HANDLE hAlgorithm,
-	BCRYPT_KEY_HANDLE hImportKey,
-	LPCWSTR pszBlobType,
-	BCRYPT_KEY_HANDLE *phKey,
-    PUCHAR   pbInput,
-	ULONG   cbInput,
-	ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptDuplicateKey(BCRYPT_KEY_HANDLE   hKey,
-	BCRYPT_KEY_HANDLE   *phNewKey,
-    PUCHAR   pbKeyObject,
-	ULONG   cbKeyObject,
-	ULONG   dwFlags);
-
-NTSTATUS BCryptFinalizeKeyPair(BCRYPT_KEY_HANDLE   hKey, ULONG   dwFlags);
-
-NTSTATUS BCryptDestroyKey(BCRYPT_KEY_HANDLE   hKey);
-
-NTSTATUS BCryptDestroySecret(BCRYPT_SECRET_HANDLE   hSecret);
-
-NTSTATUS BCryptSignHash(BCRYPT_KEY_HANDLE   hKey,
-    void    *pPaddingInfo,
-    PUCHAR   pbInput,
-    ULONG   cbInput,
-    PUCHAR   pbOutput,
-    ULONG   cbOutput,
-    ULONG   *pcbResult,
-    ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptVerifySignature(BCRYPT_KEY_HANDLE   hKey,
-	void    *pPaddingInfo,
-    PUCHAR   pbHash,
-	ULONG   cbHash,
-    PUCHAR   pbSignature,
-	ULONG   cbSignature,
-	ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptSecretAgreement(
-	BCRYPT_KEY_HANDLE       hPrivKey,
-	BCRYPT_KEY_HANDLE       hPubKey,
-	BCRYPT_SECRET_HANDLE    *phAgreedSecret,
-	ULONG                   dwFlags);
-
-
-
-NTSTATUS BCryptDeriveKey(
-	BCRYPT_SECRET_HANDLE hSharedSecret,
-	LPCWSTR              pwszKDF,
-	BCryptBufferDesc     *pParameterList,
-    PUCHAR pbDerivedKey,
-	ULONG                cbDerivedKey,
-	ULONG                *pcbResult,
-	ULONG                dwFlags);
-
-
-//
-// Primitive hashing functions.
-//
-
-NTSTATUS BCryptCreateHash(
-    BCRYPT_ALG_HANDLE   hAlgorithm,
-    BCRYPT_HASH_HANDLE  *phHash,
-    PUCHAR   pbHashObject,
-    ULONG   cbHashObject,
-    PUCHAR   pbSecret,   // optional
-    ULONG   cbSecret,   // optional
-    ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptHashData(
-    BCRYPT_HASH_HANDLE  hHash,
-    PUCHAR   pbInput,
-	ULONG   cbInput,
-	ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptFinishHash(
-    BCRYPT_HASH_HANDLE hHash,
-    PUCHAR   pbOutput,
-	ULONG   cbOutput,
-	ULONG   dwFlags);
-
-
-
-NTSTATUS BCryptDuplicateHash(
-	BCRYPT_HASH_HANDLE  hHash,
-	BCRYPT_HASH_HANDLE  *phNewHash,
-    PUCHAR   pbHashObject,
-	ULONG   cbHashObject,
-	ULONG   dwFlags);
-
-
-NTSTATUS BCryptDestroyHash(BCRYPT_HASH_HANDLE  hHash);
-
-
-//
-// Primitive random number generation.
-//
-
-NTSTATUS BCryptGenRandom(BCRYPT_ALG_HANDLE   hAlgorithm,
-    PUCHAR  pbBuffer,
-	ULONG   cbBuffer,
-	ULONG   dwFlags);
-
-
-//
-// Primitive key derivation functions.
-//
-
-NTSTATUS BCryptDeriveKeyCapi(BCRYPT_HASH_HANDLE  hHash,
-	BCRYPT_ALG_HANDLE   hTargetAlg,
-    PUCHAR              pbDerivedKey,
-	ULONG               cbDerivedKey,
-	ULONG               dwFlags);
-
-
-
-NTSTATUS BCryptDeriveKeyPBKDF2(
-	BCRYPT_ALG_HANDLE   hPrf,
-    PUCHAR              pbPassword,
-	ULONG               cbPassword,
-    PUCHAR              pbSalt,
-	ULONG               cbSalt,
-	ULONGLONG           cIterations,
-    PUCHAR              pbDerivedKey,
-	ULONG               cbDerivedKey,
-	ULONG               dwFlags);
-
-
-//
-// Interface version control...
-//
-typedef struct _BCRYPT_INTERFACE_VERSION
-{
-    USHORT MajorVersion;
-    USHORT MinorVersion;
-} BCRYPT_INTERFACE_VERSION, *PBCRYPT_INTERFACE_VERSION;
-
-
-
-
-
-
-//////////////////////////////////////////////////////////////////////////////
-// CryptoConfig Structures ///////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
-//
-// Provider Registration Structures
-//
-
-typedef struct _CRYPT_INTERFACE_REG
-{
-    ULONG dwInterface;
-    ULONG dwFlags;
-
-    ULONG cFunctions;
-    PWSTR *rgpszFunctions;
-}
-CRYPT_INTERFACE_REG, *PCRYPT_INTERFACE_REG;
-
-typedef struct _CRYPT_IMAGE_REG
-{
-    PWSTR pszImage;
-
-    ULONG cInterfaces;
-    PCRYPT_INTERFACE_REG *rgpInterfaces;
-}
-CRYPT_IMAGE_REG, *PCRYPT_IMAGE_REG;
-
-typedef struct _CRYPT_PROVIDER_REG
-{
-    ULONG cAliases;
-    PWSTR *rgpszAliases;
-
-    PCRYPT_IMAGE_REG pUM;
-    PCRYPT_IMAGE_REG pKM;
-}
-CRYPT_PROVIDER_REG, *PCRYPT_PROVIDER_REG;
-
-typedef struct _CRYPT_PROVIDERS
-{
-    ULONG cProviders;
-    PWSTR *rgpszProviders;
-}
-CRYPT_PROVIDERS, *PCRYPT_PROVIDERS;
-
-//
-// Context Configuration Structures
-//
-
-typedef struct _CRYPT_CONTEXT_CONFIG
-{
-    ULONG dwFlags;
-    ULONG dwReserved;
-}
-CRYPT_CONTEXT_CONFIG, *PCRYPT_CONTEXT_CONFIG;
-
-typedef struct _CRYPT_CONTEXT_FUNCTION_CONFIG
-{
-    ULONG dwFlags;
-    ULONG dwReserved;
-}
-CRYPT_CONTEXT_FUNCTION_CONFIG, *PCRYPT_CONTEXT_FUNCTION_CONFIG;
-
-typedef struct _CRYPT_CONTEXTS
-{
-    ULONG cContexts;
-    PWSTR *rgpszContexts;
-}
-CRYPT_CONTEXTS, *PCRYPT_CONTEXTS;
-
-typedef struct _CRYPT_CONTEXT_FUNCTIONS
-{
-    ULONG cFunctions;
-    PWSTR *rgpszFunctions;
-}
-CRYPT_CONTEXT_FUNCTIONS, *PCRYPT_CONTEXT_FUNCTIONS;
-
-typedef struct _CRYPT_CONTEXT_FUNCTION_PROVIDERS
-{
-    ULONG cProviders;
-    PWSTR *rgpszProviders;
-}
-CRYPT_CONTEXT_FUNCTION_PROVIDERS, *PCRYPT_CONTEXT_FUNCTION_PROVIDERS;
-
-//
-// Provider Resolution Structures
-//
-
-typedef struct _CRYPT_PROPERTY_REF
-{
-    PWSTR pszProperty;
-
-    ULONG cbValue;
-    PUCHAR pbValue;
-}
-CRYPT_PROPERTY_REF, *PCRYPT_PROPERTY_REF;
-
-typedef struct _CRYPT_IMAGE_REF
-{
-    PWSTR pszImage;
-    ULONG dwFlags;
-}
-CRYPT_IMAGE_REF, *PCRYPT_IMAGE_REF;
-
-typedef struct _CRYPT_PROVIDER_REF
-{
-    ULONG dwInterface;
-    PWSTR pszFunction;
-    PWSTR pszProvider;
-
-    ULONG cProperties;
-    PCRYPT_PROPERTY_REF *rgpProperties;
-
-    PCRYPT_IMAGE_REF pUM;
-    PCRYPT_IMAGE_REF pKM;
-}
-CRYPT_PROVIDER_REF, *PCRYPT_PROVIDER_REF;
-
-typedef struct _CRYPT_PROVIDER_REFS
-{
-    ULONG cProviders;
-    PCRYPT_PROVIDER_REF *rgpProviders;
-}
-CRYPT_PROVIDER_REFS, *PCRYPT_PROVIDER_REFS;
-
-//////////////////////////////////////////////////////////////////////////////
-// CryptoConfig Functions ////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
-
-
-
-NTSTATUS BCryptQueryProviderRegistration(LPCWSTR pszProvider,
-    ULONG dwMode,
-    ULONG dwInterface,
-    ULONG* pcbBuffer,
-    PCRYPT_PROVIDER_REG *ppBuffer);
-
-
-NTSTATUS BCryptEnumRegisteredProviders(ULONG* pcbBuffer, PCRYPT_PROVIDERS *ppBuffer);
-
-//
-// Context Configuration Functions
-//
-
-NTSTATUS BCryptCreateContext(
-     ULONG dwTable,
-     LPCWSTR pszContext,
-     PCRYPT_CONTEXT_CONFIG pConfig); // Optional
-
-
-NTSTATUS BCryptDeleteContext(ULONG dwTable, LPCWSTR pszContext);
-
-
-NTSTATUS BCryptEnumContexts(ULONG dwTable,
-    ULONG* pcbBuffer,
-    PCRYPT_CONTEXTS *ppBuffer);
-
-
-NTSTATUS BCryptConfigureContext(ULONG dwTable,
-     LPCWSTR pszContext,
-     PCRYPT_CONTEXT_CONFIG pConfig);
-
-
-NTSTATUS BCryptQueryContextConfiguration(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG* pcbBuffer,
-    PCRYPT_CONTEXT_CONFIG *ppBuffer);
-
-
-NTSTATUS BCryptAddContextFunction(ULONG dwTable,
-	LPCWSTR pszContext,
-    ULONG dwInterface,
-    LPCWSTR pszFunction,
-    ULONG dwPosition);
-
-
-NTSTATUS BCryptRemoveContextFunction(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG dwInterface,
-    LPCWSTR pszFunction);
-
-
-NTSTATUS BCryptEnumContextFunctions(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG dwInterface,
-    ULONG* pcbBuffer,
-    PCRYPT_CONTEXT_FUNCTIONS *ppBuffer);
-
-
-NTSTATUS BCryptConfigureContextFunction(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG dwInterface,
-    LPCWSTR pszFunction,
-    PCRYPT_CONTEXT_FUNCTION_CONFIG pConfig);
-
-
-NTSTATUS BCryptQueryContextFunctionConfiguration(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG dwInterface,
-    LPCWSTR pszFunction,
-    ULONG* pcbBuffer,
-    PCRYPT_CONTEXT_FUNCTION_CONFIG *ppBuffer);
-
-
-NTSTATUS BCryptEnumContextFunctionProviders(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG dwInterface,
-    LPCWSTR pszFunction,
-    ULONG* pcbBuffer,
-    PCRYPT_CONTEXT_FUNCTION_PROVIDERS *ppBuffer);
-
-
-NTSTATUS BCryptSetContextFunctionProperty(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG dwInterface,
-    LPCWSTR pszFunction,
-    LPCWSTR pszProperty,
-    ULONG cbValue,
-    PUCHAR pbValue);
-
-
-NTSTATUS BCryptQueryContextFunctionProperty(ULONG dwTable,
-    LPCWSTR pszContext,
-    ULONG dwInterface,
-    LPCWSTR pszFunction,
-    LPCWSTR pszProperty,
-    ULONG* pcbValue,
-    PUCHAR *ppbValue);
-
-
-//
-// Configuration Change Notification Functions
-//
-NTSTATUS BCryptRegisterConfigChangeNotify(HANDLE *phEvent);
-
-NTSTATUS BCryptUnregisterConfigChangeNotify(HANDLE hEvent);
-
-
-//
-// Provider Resolution Functions
-//
-
-NTSTATUS BCryptResolveProviders(
-     LPCWSTR pszContext,
-     ULONG dwInterface,
-     LPCWSTR pszFunction,
-     LPCWSTR pszProvider,
-     ULONG dwMode,
-     ULONG dwFlags,
-     ULONG* pcbBuffer,
-    PCRYPT_PROVIDER_REFS *ppBuffer);
-
-//
-// Miscellaneous queries about the crypto environment
-//
-NTSTATUS BCryptGetFipsAlgorithmMode(BOOLEAN *pfEnabled);
-]]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 local BCRYPT_MAKE_INTERFACE_VERSION = function(major,minor)
 	return {band(0xff, major), band(0xff, minor)}
 end
@@ -1128,27 +397,923 @@ CRYPT_DEFAULT_CONTEXT      = L"Default";
 
 	Lib = BCLib;
 
+}
 
-	-- Some Convenience Functions
-	GetRandomBytes = function(howmany)
-		howmany = howmany or 4
 
-		local rngBuff = ffi.new("uint8_t[?]", howmany)
 
-		local status =  BCLib.BCryptGenRandom(nil, rngBuff, howmany, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-		if status >= 0 then
-			return rngBuff, howmany
+
+
+-- From BCrypt.h
+
+ffi.cdef[[
+	typedef uint32_t	NTSTATUS;
+	typedef NTSTATUS *PNTSTATUS;
+]]
+
+
+
+
+
+ffi.cdef[[
+//
+// BCrypt structs
+//
+
+typedef struct __BCRYPT_KEY_LENGTHS_STRUCT
+{
+    ULONG   dwMinLength;
+    ULONG   dwMaxLength;
+    ULONG   dwIncrement;
+} BCRYPT_KEY_LENGTHS_STRUCT;
+
+typedef BCRYPT_KEY_LENGTHS_STRUCT BCRYPT_AUTH_TAG_LENGTHS_STRUCT;
+
+typedef struct _BCRYPT_OID
+{
+    ULONG   cbOID;
+    PUCHAR  pbOID;
+} BCRYPT_OID;
+
+typedef struct _BCRYPT_OID_LIST
+{
+    ULONG       dwOIDCount;
+    BCRYPT_OID  *pOIDs;
+} BCRYPT_OID_LIST;
+
+typedef struct _BCRYPT_PKCS1_PADDING_INFO
+{
+    LPCWSTR pszAlgId;
+} BCRYPT_PKCS1_PADDING_INFO;
+
+typedef struct _BCRYPT_PSS_PADDING_INFO
+{
+    LPCWSTR pszAlgId;
+    ULONG   cbSalt;
+} BCRYPT_PSS_PADDING_INFO;
+
+typedef struct _BCRYPT_OAEP_PADDING_INFO
+{
+    LPCWSTR pszAlgId;
+    PUCHAR   pbLabel;
+    ULONG   cbLabel;
+} BCRYPT_OAEP_PADDING_INFO;
+
+
+
+
+typedef struct _BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
+{
+    ULONG       cbSize;
+    ULONG       dwInfoVersion;
+    PUCHAR      pbNonce;
+    ULONG       cbNonce;
+    PUCHAR      pbAuthData;
+    ULONG       cbAuthData;
+    PUCHAR      pbTag;
+    ULONG       cbTag;
+    PUCHAR      pbMacContext;
+    ULONG       cbMacContext;
+    ULONG       cbAAD;
+    ULONGLONG   cbData;
+    ULONG       dwFlags;
+} BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO, *PBCRYPT_AUTHENTICATED_CIPHER_MODE_INFO;
+
+
+
+
+
+typedef struct _BCryptBuffer {
+    ULONG   cbBuffer;             // Length of buffer, in bytes
+    ULONG   BufferType;           // Buffer type
+    PVOID   pvBuffer;             // Pointer to buffer
+} BCryptBuffer, * PBCryptBuffer;
+
+typedef struct _BCryptBufferDesc {
+    ULONG   ulVersion;            // Version number
+    ULONG   cBuffers;             // Number of buffers
+    PBCryptBuffer pBuffers;       // Pointer to array of buffers
+} BCryptBufferDesc, * PBCryptBufferDesc;
+
+
+//
+// Primitive handles
+//
+
+typedef PVOID BCRYPT_HANDLE;
+typedef PVOID BCRYPT_ALG_HANDLE;
+typedef PVOID BCRYPT_KEY_HANDLE;
+typedef PVOID BCRYPT_HASH_HANDLE;
+typedef PVOID BCRYPT_SECRET_HANDLE;
+
+
+
+
+
+typedef struct _BCRYPT_KEY_BLOB
+{
+    ULONG   Magic;
+} BCRYPT_KEY_BLOB;
+
+typedef struct _BCRYPT_RSAKEY_BLOB
+{
+    ULONG   Magic;
+    ULONG   BitLength;
+    ULONG   cbPublicExp;
+    ULONG   cbModulus;
+    ULONG   cbPrime1;
+    ULONG   cbPrime2;
+} BCRYPT_RSAKEY_BLOB;
+
+typedef struct _BCRYPT_ECCKEY_BLOB
+{
+    ULONG   dwMagic;
+    ULONG   cbKey;
+} BCRYPT_ECCKEY_BLOB, *PBCRYPT_ECCKEY_BLOB;
+
+typedef struct _BCRYPT_DH_KEY_BLOB
+{
+    ULONG   dwMagic;
+    ULONG   cbKey;
+} BCRYPT_DH_KEY_BLOB, *PBCRYPT_DH_KEY_BLOB;
+
+typedef struct _BCRYPT_DH_PARAMETER_HEADER
+{
+    ULONG           cbLength;
+    ULONG           dwMagic;
+    ULONG           cbKeyLength;
+} BCRYPT_DH_PARAMETER_HEADER;
+
+typedef struct _BCRYPT_DSA_KEY_BLOB
+{
+    ULONG   dwMagic;
+    ULONG   cbKey;
+    UCHAR   Count[4];
+    UCHAR   Seed[20];
+    UCHAR   q[20];
+} BCRYPT_DSA_KEY_BLOB, *PBCRYPT_DSA_KEY_BLOB;
+
+typedef struct _BCRYPT_KEY_DATA_BLOB_HEADER
+{
+    ULONG   dwMagic;
+    ULONG   dwVersion;
+    ULONG   cbKeyData;
+} BCRYPT_KEY_DATA_BLOB_HEADER, *PBCRYPT_KEY_DATA_BLOB_HEADER;
+
+typedef struct _BCRYPT_DSA_PARAMETER_HEADER
+{
+    ULONG           cbLength;
+    ULONG           dwMagic;
+    ULONG           cbKeyLength;
+    UCHAR           Count[4];
+    UCHAR           Seed[20];
+    UCHAR           q[20];
+} BCRYPT_DSA_PARAMETER_HEADER;
+
+
+//
+// Primitive algorithm provider functions.
+//
+
+NTSTATUS BCryptOpenAlgorithmProvider(BCRYPT_ALG_HANDLE   *phAlgorithm,
+	LPCWSTR pszAlgId,
+	LPCWSTR pszImplementation,
+	ULONG   dwFlags);
+
+
+
+// USE EXTREME CAUTION: editing comments that contain "certenrolls_*" tokens
+// could break building CertEnroll idl files:
+// certenrolls_begin -- BCRYPT_ALGORITHM_IDENTIFIER
+typedef struct _BCRYPT_ALGORITHM_IDENTIFIER
+{
+    LPWSTR  pszName;
+    ULONG   dwClass;
+    ULONG   dwFlags;
+
+} BCRYPT_ALGORITHM_IDENTIFIER;
+// certenrolls_end
+
+
+NTSTATUS BCryptEnumAlgorithms(
+        ULONG   dwAlgOperations,
+       ULONG   *pAlgCount,
+       BCRYPT_ALGORITHM_IDENTIFIER **ppAlgList,
+        ULONG   dwFlags);
+
+typedef struct _BCRYPT_PROVIDER_NAME
+{
+    LPWSTR  pszProviderName;
+} BCRYPT_PROVIDER_NAME;
+
+
+NTSTATUS BCryptEnumProviders(
+	LPCWSTR pszAlgId,
+	ULONG   *pImplCount,
+	BCRYPT_PROVIDER_NAME    **ppImplList,
+	ULONG   dwFlags);
+
+NTSTATUS BCryptGetProperty(BCRYPT_HANDLE   hObject,
+	LPCWSTR pszProperty,
+    PUCHAR   pbOutput,
+	ULONG   cbOutput,
+	ULONG   *pcbResult,
+	ULONG   dwFlags);
+
+NTSTATUS BCryptSetProperty(
+    BCRYPT_HANDLE   hObject,
+	LPCWSTR pszProperty,
+    PUCHAR   pbInput,
+	ULONG   cbInput,
+	ULONG   dwFlags);
+
+NTSTATUS BCryptCloseAlgorithmProvider(BCRYPT_ALG_HANDLE   hAlgorithm, ULONG   dwFlags);
+
+void BCryptFreeBuffer(PVOID   pvBuffer);
+
+
+//
+// Primitive encryption functions.
+//
+
+NTSTATUS BCryptGenerateSymmetricKey(BCRYPT_ALG_HANDLE   hAlgorithm,
+	BCRYPT_KEY_HANDLE   *phKey,
+    PUCHAR   pbKeyObject,
+    ULONG   cbKeyObject,
+    PUCHAR   pbSecret,
+    ULONG   cbSecret,
+    ULONG   dwFlags);
+
+NTSTATUS BCryptGenerateKeyPair(BCRYPT_ALG_HANDLE   hAlgorithm,
+       BCRYPT_KEY_HANDLE   *phKey,
+        ULONG   dwLength,
+        ULONG   dwFlags);
+
+NTSTATUS BCryptEncrypt(BCRYPT_KEY_HANDLE hKey,
+    PUCHAR   pbInput,
+	ULONG   cbInput,
+	void    *pPaddingInfo,
+    PUCHAR   pbIV,
+	ULONG   cbIV,
+    PUCHAR   pbOutput,
+	ULONG   cbOutput,
+	ULONG   *pcbResult,
+	ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptDecrypt(BCRYPT_KEY_HANDLE   hKey,
+    PUCHAR   pbInput,
+	ULONG   cbInput,
+	void    *pPaddingInfo,
+    PUCHAR   pbIV,
+	ULONG   cbIV,
+    PUCHAR   pbOutput,
+	ULONG   cbOutput,
+	ULONG   *pcbResult,
+	ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptExportKey(BCRYPT_KEY_HANDLE   hKey,
+	BCRYPT_KEY_HANDLE   hExportKey,
+	LPCWSTR pszBlobType,
+    PUCHAR   pbOutput,
+	ULONG   cbOutput,
+	ULONG   *pcbResult,
+	ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptImportKey(BCRYPT_ALG_HANDLE hAlgorithm,
+	BCRYPT_KEY_HANDLE hImportKey,
+	LPCWSTR pszBlobType,
+	BCRYPT_KEY_HANDLE *phKey,
+    PUCHAR   pbKeyObject,
+	ULONG   cbKeyObject,
+    PUCHAR   pbInput,
+	ULONG   cbInput,
+	ULONG   dwFlags);
+
+
+NTSTATUS BCryptImportKeyPair(BCRYPT_ALG_HANDLE hAlgorithm,
+	BCRYPT_KEY_HANDLE hImportKey,
+	LPCWSTR pszBlobType,
+	BCRYPT_KEY_HANDLE *phKey,
+    PUCHAR   pbInput,
+	ULONG   cbInput,
+	ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptDuplicateKey(BCRYPT_KEY_HANDLE   hKey,
+	BCRYPT_KEY_HANDLE   *phNewKey,
+    PUCHAR   pbKeyObject,
+	ULONG   cbKeyObject,
+	ULONG   dwFlags);
+
+NTSTATUS BCryptFinalizeKeyPair(BCRYPT_KEY_HANDLE   hKey, ULONG   dwFlags);
+
+NTSTATUS BCryptDestroyKey(BCRYPT_KEY_HANDLE   hKey);
+
+NTSTATUS BCryptDestroySecret(BCRYPT_SECRET_HANDLE   hSecret);
+
+NTSTATUS BCryptSignHash(BCRYPT_KEY_HANDLE   hKey,
+    void    *pPaddingInfo,
+    PUCHAR   pbInput,
+    ULONG   cbInput,
+    PUCHAR   pbOutput,
+    ULONG   cbOutput,
+    ULONG   *pcbResult,
+    ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptVerifySignature(BCRYPT_KEY_HANDLE   hKey,
+	void    *pPaddingInfo,
+    PUCHAR   pbHash,
+	ULONG   cbHash,
+    PUCHAR   pbSignature,
+	ULONG   cbSignature,
+	ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptSecretAgreement(
+	BCRYPT_KEY_HANDLE       hPrivKey,
+	BCRYPT_KEY_HANDLE       hPubKey,
+	BCRYPT_SECRET_HANDLE    *phAgreedSecret,
+	ULONG                   dwFlags);
+
+
+
+NTSTATUS BCryptDeriveKey(
+	BCRYPT_SECRET_HANDLE hSharedSecret,
+	LPCWSTR              pwszKDF,
+	BCryptBufferDesc     *pParameterList,
+    PUCHAR pbDerivedKey,
+	ULONG                cbDerivedKey,
+	ULONG                *pcbResult,
+	ULONG                dwFlags);
+
+
+	typedef struct BCryptKey
+	{
+		BCRYPT_KEY_HANDLE Handle;
+	}BCryptKey;
+]]
+
+BCryptKey = ffi.typeof("BCryptKey");
+BCryptKey_mt = {
+	__gc = function(self)
+		status = BCLib.BCryptDestroyKey(self.Handle)
+	end,
+
+	__index  = {
+		FinalizeKeyPair = function(self)
+			local status = BCLib.BCryptFinalizeKeyPair(self.Handle);
+
+			return status == 0 or nil, status
+		end,
+	},
+}
+BCryptKey = ffi.metatype(BCryptKey, BCryptKey_mt);
+
+
+
+
+ffi.cdef[[
+//
+// Primitive hashing functions.
+//
+
+NTSTATUS BCryptCreateHash(
+    BCRYPT_ALG_HANDLE   hAlgorithm,
+    BCRYPT_HASH_HANDLE  *phHash,
+    PUCHAR   pbHashObject,
+    ULONG   cbHashObject,
+    PUCHAR   pbSecret,   // optional
+    ULONG   cbSecret,   // optional
+    ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptHashData(
+    BCRYPT_HASH_HANDLE  hHash,
+    PCUCHAR   pbInput,
+	ULONG   cbInput,
+	ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptFinishHash(
+    BCRYPT_HASH_HANDLE hHash,
+    PUCHAR   pbOutput,
+	ULONG   cbOutput,
+	ULONG   dwFlags);
+
+
+
+NTSTATUS BCryptDuplicateHash(
+	BCRYPT_HASH_HANDLE  hHash,
+	BCRYPT_HASH_HANDLE  *phNewHash,
+    PUCHAR   pbHashObject,
+	ULONG   cbHashObject,
+	ULONG   dwFlags);
+
+
+NTSTATUS BCryptDestroyHash(BCRYPT_HASH_HANDLE  hHash);
+
+typedef struct {
+	BCRYPT_HASH_HANDLE	Handle;
+}BCryptHash;
+]]
+
+BCryptHash = ffi.typeof("BCryptHash");
+BCryptHash_mt = {
+	__gc = function(self)
+		local status = BCLib.BCryptDestroyHash(self.Handle);
+	end,
+
+	__new = function(ct, algorithm)
+		local phHash = ffi.new("BCRYPT_HASH_HANDLE[1]");
+		local pbHashObject = nil
+		local cbHashObject = 0
+		local pbSecret = nil
+		local cbSecret = 0
+		local flags = 0
+
+		local status = BCLib.BCryptCreateHash(algorithm.Handle,
+			phHash,
+			pbHashObject,
+			cbHashObject,
+			pbSecret,
+			cbSecret,
+			flags);
+
+		if status ~= 0 then
+			return nil, status
 		end
 
-		return nil, status
-	end;
+		return ffi.new(ct, phHash[0]);
+	end,
+
+	__index = {
+		GetProperty = function(self, name, buffer, size)
+			local pcbResult = ffi.new("uint32_t[1]")
+			local buffptr = ffi.cast("uint8_t *", buffer)
+			local status = BCLib.BCryptGetProperty(self.Handle,
+				name,
+				buffptr, size,
+				pcbResult,
+				0);
+
+			if status ~= 0 then
+				print("GetProperty, Error status: ", status);
+				return nil, status
+			end
+
+			-- got the result back
+			-- return it to the user
+			return buffptr, pcbResult[0]
+		end,
+
+		GetPropertyBuffer = function(self, name)
+			local pcbResult = ffi.new("uint32_t[1]")
+			local status = BCLib.BCryptGetProperty(self.Handle,
+				name,
+				nil, 0,
+				pcbResult,
+				0);
+
+			if status ~= 0 then
+				return nil, status
+			end
+
+			local bytesneeded = pcbResult[0]
+			local pbOutput = ffi.new("uint8_t[?]", pcbResult[0]);
+
+			return pbOutput, bytesneeded
+		end,
+
+		GetHashDigestLength = function(self)
+			local size = ffi.sizeof("int32_t");
+			local buff = ffi.new("int[1]")
+			local outbuff, byteswritten = self:GetProperty(BCrypt.BCRYPT_HASH_LENGTH, buff, size)
+
+			print("GetHashLength: ", outbuff, byteswritten);
+
+			if not outbuff then
+				return nil, byteswritten
+			end
+
+			return buff[0];
+		end,
+
+		Clone = function(self)
+			local phNewHash = ffi.new("BCRYPT_HASH_HANDLE[1]");
+			local pbHashObject = nil
+			local cbHashObject = 0
+			local pbSecret = nil
+			local cbSecret = 0
+			local flags = 0
+
+			local status = BCLib.BCryptDuplicateHash(self.Handle,
+				phNewHash,
+				pbHashObject,
+				cbHashObject,
+				flags);
+
+			if status ~= 0 then
+				return nil, status
+			end
+
+			return ffi.new("BCryptHash", phNewHash[0]);
+		end,
+
+		HashMore = function(self, chunk, chunksize)
+			local pbInput = chunk
+			local cbInput
+			local flags = 0
+
+			if type(chunk) == "string" then
+				pbInput = ffi.cast("const uint8_t *", chunk);
+				if not chunksize then
+					cbInput = #chunk
+				end
+			else
+				cbInput = cbInput or 0
+			end
+
+			local status = BCLib.BCryptHashData(self.Handle,
+				pbInput,
+				cbInput,
+				flags);
+
+			return status == 0 or nil, status
+		end,
+
+		Finish = function(self, pbOutput, cbOutput)
+			local flags = 0
+			local status = BCLib.BCryptFinishHash(self.Handle,
+				pbOutput,
+				cbOutput,
+				flags);
+
+			return status == 0 or nil, status
+		end,
+	},
 }
+
+BCryptHash = ffi.metatype(BCryptHash, BCryptHash_mt);
+
+
+
+ffi.cdef[[
+//
+// Primitive random number generation.
+//
+
+NTSTATUS BCryptGenRandom(BCRYPT_ALG_HANDLE   hAlgorithm,
+    PUCHAR  pbBuffer,
+	ULONG   cbBuffer,
+	ULONG   dwFlags);
+
+
+//
+// Primitive key derivation functions.
+//
+
+NTSTATUS BCryptDeriveKeyCapi(BCRYPT_HASH_HANDLE  hHash,
+	BCRYPT_ALG_HANDLE   hTargetAlg,
+    PUCHAR              pbDerivedKey,
+	ULONG               cbDerivedKey,
+	ULONG               dwFlags);
+
+
+
+NTSTATUS BCryptDeriveKeyPBKDF2(
+	BCRYPT_ALG_HANDLE   hPrf,
+    PUCHAR              pbPassword,
+	ULONG               cbPassword,
+    PUCHAR              pbSalt,
+	ULONG               cbSalt,
+	ULONGLONG           cIterations,
+    PUCHAR              pbDerivedKey,
+	ULONG               cbDerivedKey,
+	ULONG               dwFlags);
+
+
+//
+// Interface version control...
+//
+typedef struct _BCRYPT_INTERFACE_VERSION
+{
+    USHORT MajorVersion;
+    USHORT MinorVersion;
+} BCRYPT_INTERFACE_VERSION, *PBCRYPT_INTERFACE_VERSION;
+]]
+
+
+
+
+ffi.cdef[[
+//////////////////////////////////////////////////////////////////////////////
+// CryptoConfig Structures ///////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//
+// Provider Registration Structures
+//
+
+typedef struct _CRYPT_INTERFACE_REG
+{
+    ULONG dwInterface;
+    ULONG dwFlags;
+
+    ULONG cFunctions;
+    PWSTR *rgpszFunctions;
+}
+CRYPT_INTERFACE_REG, *PCRYPT_INTERFACE_REG;
+
+typedef struct _CRYPT_IMAGE_REG
+{
+    PWSTR pszImage;
+
+    ULONG cInterfaces;
+    PCRYPT_INTERFACE_REG *rgpInterfaces;
+}
+CRYPT_IMAGE_REG, *PCRYPT_IMAGE_REG;
+
+typedef struct _CRYPT_PROVIDER_REG
+{
+    ULONG cAliases;
+    PWSTR *rgpszAliases;
+
+    PCRYPT_IMAGE_REG pUM;
+    PCRYPT_IMAGE_REG pKM;
+}
+CRYPT_PROVIDER_REG, *PCRYPT_PROVIDER_REG;
+
+typedef struct _CRYPT_PROVIDERS
+{
+    ULONG cProviders;
+    PWSTR *rgpszProviders;
+}
+CRYPT_PROVIDERS, *PCRYPT_PROVIDERS;
+
+//
+// Context Configuration Structures
+//
+
+typedef struct _CRYPT_CONTEXT_CONFIG
+{
+    ULONG dwFlags;
+    ULONG dwReserved;
+}
+CRYPT_CONTEXT_CONFIG, *PCRYPT_CONTEXT_CONFIG;
+
+typedef struct _CRYPT_CONTEXT_FUNCTION_CONFIG
+{
+    ULONG dwFlags;
+    ULONG dwReserved;
+}
+CRYPT_CONTEXT_FUNCTION_CONFIG, *PCRYPT_CONTEXT_FUNCTION_CONFIG;
+
+typedef struct _CRYPT_CONTEXTS
+{
+    ULONG cContexts;
+    PWSTR *rgpszContexts;
+}
+CRYPT_CONTEXTS, *PCRYPT_CONTEXTS;
+
+typedef struct _CRYPT_CONTEXT_FUNCTIONS
+{
+    ULONG cFunctions;
+    PWSTR *rgpszFunctions;
+}
+CRYPT_CONTEXT_FUNCTIONS, *PCRYPT_CONTEXT_FUNCTIONS;
+
+typedef struct _CRYPT_CONTEXT_FUNCTION_PROVIDERS
+{
+    ULONG cProviders;
+    PWSTR *rgpszProviders;
+}
+CRYPT_CONTEXT_FUNCTION_PROVIDERS, *PCRYPT_CONTEXT_FUNCTION_PROVIDERS;
+
+//
+// Provider Resolution Structures
+//
+
+typedef struct _CRYPT_PROPERTY_REF
+{
+    PWSTR pszProperty;
+
+    ULONG cbValue;
+    PUCHAR pbValue;
+}
+CRYPT_PROPERTY_REF, *PCRYPT_PROPERTY_REF;
+
+typedef struct _CRYPT_IMAGE_REF
+{
+    PWSTR pszImage;
+    ULONG dwFlags;
+}
+CRYPT_IMAGE_REF, *PCRYPT_IMAGE_REF;
+
+typedef struct _CRYPT_PROVIDER_REF
+{
+    ULONG dwInterface;
+    PWSTR pszFunction;
+    PWSTR pszProvider;
+
+    ULONG cProperties;
+    PCRYPT_PROPERTY_REF *rgpProperties;
+
+    PCRYPT_IMAGE_REF pUM;
+    PCRYPT_IMAGE_REF pKM;
+}
+CRYPT_PROVIDER_REF, *PCRYPT_PROVIDER_REF;
+
+typedef struct _CRYPT_PROVIDER_REFS
+{
+    ULONG cProviders;
+    PCRYPT_PROVIDER_REF *rgpProviders;
+}
+CRYPT_PROVIDER_REFS, *PCRYPT_PROVIDER_REFS;
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+// CryptoConfig Functions ////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+
+
+
+NTSTATUS BCryptQueryProviderRegistration(LPCWSTR pszProvider,
+    ULONG dwMode,
+    ULONG dwInterface,
+    ULONG* pcbBuffer,
+    PCRYPT_PROVIDER_REG *ppBuffer);
+
+
+NTSTATUS BCryptEnumRegisteredProviders(ULONG* pcbBuffer, PCRYPT_PROVIDERS *ppBuffer);
+
+//
+// Context Configuration Functions
+//
+
+NTSTATUS BCryptCreateContext(
+     ULONG dwTable,
+     LPCWSTR pszContext,
+     PCRYPT_CONTEXT_CONFIG pConfig); // Optional
+
+
+NTSTATUS BCryptDeleteContext(ULONG dwTable, LPCWSTR pszContext);
+
+
+NTSTATUS BCryptEnumContexts(ULONG dwTable,
+    ULONG* pcbBuffer,
+    PCRYPT_CONTEXTS *ppBuffer);
+
+
+NTSTATUS BCryptConfigureContext(ULONG dwTable,
+     LPCWSTR pszContext,
+     PCRYPT_CONTEXT_CONFIG pConfig);
+
+
+NTSTATUS BCryptQueryContextConfiguration(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG* pcbBuffer,
+    PCRYPT_CONTEXT_CONFIG *ppBuffer);
+
+
+NTSTATUS BCryptAddContextFunction(ULONG dwTable,
+	LPCWSTR pszContext,
+    ULONG dwInterface,
+    LPCWSTR pszFunction,
+    ULONG dwPosition);
+
+
+NTSTATUS BCryptRemoveContextFunction(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG dwInterface,
+    LPCWSTR pszFunction);
+
+
+NTSTATUS BCryptEnumContextFunctions(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG dwInterface,
+    ULONG* pcbBuffer,
+    PCRYPT_CONTEXT_FUNCTIONS *ppBuffer);
+
+
+NTSTATUS BCryptConfigureContextFunction(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG dwInterface,
+    LPCWSTR pszFunction,
+    PCRYPT_CONTEXT_FUNCTION_CONFIG pConfig);
+
+
+NTSTATUS BCryptQueryContextFunctionConfiguration(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG dwInterface,
+    LPCWSTR pszFunction,
+    ULONG* pcbBuffer,
+    PCRYPT_CONTEXT_FUNCTION_CONFIG *ppBuffer);
+
+
+NTSTATUS BCryptEnumContextFunctionProviders(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG dwInterface,
+    LPCWSTR pszFunction,
+    ULONG* pcbBuffer,
+    PCRYPT_CONTEXT_FUNCTION_PROVIDERS *ppBuffer);
+
+
+NTSTATUS BCryptSetContextFunctionProperty(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG dwInterface,
+    LPCWSTR pszFunction,
+    LPCWSTR pszProperty,
+    ULONG cbValue,
+    PUCHAR pbValue);
+
+
+NTSTATUS BCryptQueryContextFunctionProperty(ULONG dwTable,
+    LPCWSTR pszContext,
+    ULONG dwInterface,
+    LPCWSTR pszFunction,
+    LPCWSTR pszProperty,
+    ULONG* pcbValue,
+    PUCHAR *ppbValue);
+
+
+//
+// Configuration Change Notification Functions
+//
+NTSTATUS BCryptRegisterConfigChangeNotify(HANDLE *phEvent);
+
+NTSTATUS BCryptUnregisterConfigChangeNotify(HANDLE hEvent);
+
+
+//
+// Provider Resolution Functions
+//
+
+NTSTATUS BCryptResolveProviders(
+     LPCWSTR pszContext,
+     ULONG dwInterface,
+     LPCWSTR pszFunction,
+     LPCWSTR pszProvider,
+     ULONG dwMode,
+     ULONG dwFlags,
+     ULONG* pcbBuffer,
+    PCRYPT_PROVIDER_REFS *ppBuffer);
+
+//
+// Miscellaneous queries about the crypto environment
+//
+NTSTATUS BCryptGetFipsAlgorithmMode(BOOLEAN *pfEnabled);
+]]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 ffi.cdef[[
 typedef struct BCryptAlgorithm {
-	BCRYPT_ALG_HANDLE Handle[1];
+	BCRYPT_ALG_HANDLE Handle;
 } BCryptAlgorithm
 ]]
 
@@ -1156,8 +1321,8 @@ local BCryptAlgorithm = ffi.typeof("struct BCryptAlgorithm")
 local BCryptAlgorithm_mt = {
 	__gc = function(self)
 		print("BCryptAlgorithm: GC")
-		if self.Handle ~= nil and self.Handle[0] ~= nil then
-			BCLib.BCryptCloseAlgorithmProvider(self.Handle[0], 0)
+		if self.Handle ~= nil then
+			BCLib.BCryptCloseAlgorithmProvider(self.Handle, 0)
 		end
 	end;
 
@@ -1180,11 +1345,31 @@ local BCryptAlgorithm_mt = {
 			return nil
 		end
 
-		local newone = ffi.new("struct BCryptAlgorithm", lphAlgo)
+		local newone = ffi.new("struct BCryptAlgorithm", lphAlgo[0])
 		return newone;
 	end;
 
 	__index = {
+		-- CreateHash
+		CreateHash = function(self)
+			return BCryptHash(self);
+		end,
+
+		CreateKeyPair = function(self, length, flags)
+			length = length or 384
+			flags = flags or 0
+			local fullKey = ffi.new("BCRYPT_KEY_HANDLE[1]");
+			local status = BCLib.BCryptGenerateKeyPair(self.Handle,
+				fullKey, length, flags);
+
+			if status ~= 0 then
+				return nil, status
+			end
+
+			-- create the key pair
+			local fullKey = fullKey[0];
+
+		end,
 	}
 };
 BCryptAlgorithm = ffi.metatype(BCryptAlgorithm, BCryptAlgorithm_mt);
@@ -1192,7 +1377,65 @@ BCryptAlgorithm = ffi.metatype(BCryptAlgorithm, BCryptAlgorithm_mt);
 
 BCrypt.BCryptAlgorithm = BCryptAlgorithm;
 
+--[[
+	Pre allocated Algorithm objects
+--]]
 
+BCrypt.RSAAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RSA_ALGORITHM);
+BCrypt.RSASignAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RSA_SIGN_ALGORITHM);
+
+BCrypt.DHAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DH_ALGORITHM);
+BCrypt.DSAAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DSA_ALGORITHM);
+BCrypt.RC2Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RC2_ALGORITHM);
+BCrypt.RC4Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RC4_ALGORITHM);
+
+BCrypt.AESAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_AES_ALGORITHM);
+BCrypt.AESGMACAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_AES_GMAC_ALGORITHM);
+
+BCrypt.DESAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DES_ALGORITHM);
+BCrypt.DESXAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DESX_ALGORITHM);
+BCrypt.DES3Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_3DES_ALGORITHM);
+BCrypt.DES3_112Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_3DES_112_ALGORITHM);
+
+BCrypt.MD2Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_MD2_ALGORITHM);
+BCrypt.MD4Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_MD4_ALGORITHM);
+BCrypt.MD5Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_MD5_ALGORITHM);
+
+BCrypt.SHA1Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA1_ALGORITHM);
+BCrypt.SHA256Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA256_ALGORITHM);
+BCrypt.SHA384Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA384_ALGORITHM);
+BCrypt.SHA512Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA512_ALGORITHM);
+
+BCrypt.ECDSA_P256Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDSA_P256_ALGORITHM);
+BCrypt.ECDSA_P384Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDSA_P384_ALGORITHM);
+BCrypt.ECDSA_P521Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDSA_P521_ALGORITHM);
+BCrypt.ECDH_P256Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDH_P256_ALGORITHM);
+BCrypt.ECDH_P384Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDH_P384_ALGORITHM);
+BCrypt.ECDH_P521Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDH_P521_ALGORITHM);
+
+
+BCrypt.RNGAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_ALGORITHM);
+BCrypt.RNGFIPS186DSAAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_FIPS186_DSA_ALGORITHM);
+BCrypt.RNGDUALECAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_DUAL_EC_ALGORITHM);
+
+
+
+--[[
+	Convenience Functions
+--]]
+
+BCrypt.GetRandomBytes = function(howmany)
+	howmany = howmany or 4
+
+	local rngBuff = ffi.new("uint8_t[?]", howmany)
+
+	local status =  BCLib.BCryptGenRandom(nil, rngBuff, howmany, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	if status >= 0 then
+		return rngBuff, howmany
+	end
+
+	return nil, status
+end
 
 
 
