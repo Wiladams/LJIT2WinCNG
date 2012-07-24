@@ -1,4 +1,4 @@
 LJIT2WinCNG
 ===========
 
-LuaJIT FFI interface to Windows Crytography functions in BCrypt.dll
+LuaJIT FFI interface to Windows Crytography Next Generation functions found on Windows in the BCrypt.dll and NCrypt.dll libraries.
