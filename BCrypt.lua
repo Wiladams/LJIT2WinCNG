@@ -272,9 +272,11 @@ end;
  BCRYPT_RSA_SIGN_ALGORITHM               = L"RSA_SIGN";
 
  BCRYPT_DH_ALGORITHM                     = L"DH";
+
  BCRYPT_DSA_ALGORITHM                    = L"DSA";
  BCRYPT_RC2_ALGORITHM                    = L"RC2";
  BCRYPT_RC4_ALGORITHM                    = L"RC4";
+
 
  BCRYPT_AES_ALGORITHM                    = L"AES";
  BCRYPT_AES_GMAC_ALGORITHM               = L"AES-GMAC";
@@ -283,6 +285,7 @@ end;
  BCRYPT_DESX_ALGORITHM                   = L"DESX";
  BCRYPT_3DES_ALGORITHM                   = L"3DES";
  BCRYPT_3DES_112_ALGORITHM               = L"3DES_112";
+
 
  BCRYPT_MD2_ALGORITHM                    = L"MD2";
  BCRYPT_MD4_ALGORITHM                    = L"MD4";
@@ -762,21 +765,6 @@ NTSTATUS BCryptDeriveKey(
 	}BCryptKey;
 ]]
 
-BCryptKey = ffi.typeof("BCryptKey");
-BCryptKey_mt = {
-	__gc = function(self)
-		status = BCLib.BCryptDestroyKey(self.Handle)
-	end,
-
-	__index  = {
-		FinalizeKeyPair = function(self)
-			local status = BCLib.BCryptFinalizeKeyPair(self.Handle);
-
-			return status == 0 or nil, status
-		end,
-	},
-}
-BCryptKey = ffi.metatype(BCryptKey, BCryptKey_mt);
 
 
 
@@ -828,143 +816,7 @@ typedef struct {
 }BCryptHash;
 ]]
 
-BCryptHash = ffi.typeof("BCryptHash");
-BCryptHash_mt = {
-	__gc = function(self)
-		local status = BCLib.BCryptDestroyHash(self.Handle);
-	end,
 
-	__new = function(ct, algorithm)
-		local phHash = ffi.new("BCRYPT_HASH_HANDLE[1]");
-		local pbHashObject = nil
-		local cbHashObject = 0
-		local pbSecret = nil
-		local cbSecret = 0
-		local flags = 0
-
-		local status = BCLib.BCryptCreateHash(algorithm.Handle,
-			phHash,
-			pbHashObject,
-			cbHashObject,
-			pbSecret,
-			cbSecret,
-			flags);
-
-		if status ~= 0 then
-			return nil, status
-		end
-
-		return ffi.new(ct, phHash[0]);
-	end,
-
-	__index = {
-		GetProperty = function(self, name, buffer, size)
-			local pcbResult = ffi.new("uint32_t[1]")
-			local buffptr = ffi.cast("uint8_t *", buffer)
-			local status = BCLib.BCryptGetProperty(self.Handle,
-				name,
-				buffptr, size,
-				pcbResult,
-				0);
-
-			if status ~= 0 then
-				print("GetProperty, Error status: ", status);
-				return nil, status
-			end
-
-			-- got the result back
-			-- return it to the user
-			return buffptr, pcbResult[0]
-		end,
-
-		GetPropertyBuffer = function(self, name)
-			local pcbResult = ffi.new("uint32_t[1]")
-			local status = BCLib.BCryptGetProperty(self.Handle,
-				name,
-				nil, 0,
-				pcbResult,
-				0);
-
-			if status ~= 0 then
-				return nil, status
-			end
-
-			local bytesneeded = pcbResult[0]
-			local pbOutput = ffi.new("uint8_t[?]", pcbResult[0]);
-
-			return pbOutput, bytesneeded
-		end,
-
-		GetHashDigestLength = function(self)
-			local size = ffi.sizeof("int32_t");
-			local buff = ffi.new("int[1]")
-			local outbuff, byteswritten = self:GetProperty(BCrypt.BCRYPT_HASH_LENGTH, buff, size)
-
-			print("GetHashLength: ", outbuff, byteswritten);
-
-			if not outbuff then
-				return nil, byteswritten
-			end
-
-			return buff[0];
-		end,
-
-		Clone = function(self)
-			local phNewHash = ffi.new("BCRYPT_HASH_HANDLE[1]");
-			local pbHashObject = nil
-			local cbHashObject = 0
-			local pbSecret = nil
-			local cbSecret = 0
-			local flags = 0
-
-			local status = BCLib.BCryptDuplicateHash(self.Handle,
-				phNewHash,
-				pbHashObject,
-				cbHashObject,
-				flags);
-
-			if status ~= 0 then
-				return nil, status
-			end
-
-			return ffi.new("BCryptHash", phNewHash[0]);
-		end,
-
-		HashMore = function(self, chunk, chunksize)
-			local pbInput = chunk
-			local cbInput
-			local flags = 0
-
-			if type(chunk) == "string" then
-				pbInput = ffi.cast("const uint8_t *", chunk);
-				if not chunksize then
-					cbInput = #chunk
-				end
-			else
-				cbInput = cbInput or 0
-			end
-
-			local status = BCLib.BCryptHashData(self.Handle,
-				pbInput,
-				cbInput,
-				flags);
-
-			return status == 0 or nil, status
-		end,
-
-		Finish = function(self, pbOutput, cbOutput)
-			local flags = 0
-			local status = BCLib.BCryptFinishHash(self.Handle,
-				pbOutput,
-				cbOutput,
-				flags);
-
-			return status == 0 or nil, status
-		end,
-	},
-}
-
-BCryptHash = ffi.metatype(BCryptHash, BCryptHash_mt);
 
 
 
@@ -1285,127 +1137,6 @@ typedef struct BCryptAlgorithm {
 	BCRYPT_ALG_HANDLE Handle;
 } BCryptAlgorithm
 ]]
-
-local BCryptAlgorithm = ffi.typeof("struct BCryptAlgorithm")
-local BCryptAlgorithm_mt = {
-	__gc = function(self)
-		print("BCryptAlgorithm: GC")
-		if self.Handle ~= nil then
-			BCLib.BCryptCloseAlgorithmProvider(self.Handle, 0)
-		end
-	end;
-
-	__new = function(ctype, ...)
-		print("BCryptAlgorithm: NEW");
-		local params = {...}
-		local algoid = params[1]
-		local impl = params[2]
-
-		if not algoid then
-			return nil
-		end
-
-		local lphAlgo = ffi.new("BCRYPT_ALG_HANDLE[1]")
-		local algoidptr = ffi.cast("const uint16_t *", algoid)
-		local status = BCLib.BCryptOpenAlgorithmProvider(lphAlgo, algoidptr, impl, 0);
-
-		if not BCrypt.BCRYPT_SUCCESS(status) then
-			print("BCryptAlgorithm(), status: ", status);
-			return nil
-		end
-
-		local newone = ffi.new("struct BCryptAlgorithm", lphAlgo[0])
-		return newone;
-	end;
-
-	__index = {
-		-- CreateHash
-		CreateHash = function(self)
-			return BCryptHash(self);
-		end,
-
-		CreateKeyPair = function(self, length, flags)
-			length = length or 384
-			flags = flags or 0
-			local fullKey = ffi.new("BCRYPT_KEY_HANDLE[1]");
-			local status = BCLib.BCryptGenerateKeyPair(self.Handle,
-				fullKey, length, flags);
-
-			if status ~= 0 then
-				return nil, status
-			end
-
-			-- create the key pair
-			local fullKey = fullKey[0];
-
-		end,
-	}
-};
-BCryptAlgorithm = ffi.metatype(BCryptAlgorithm, BCryptAlgorithm_mt);
-
-
-BCrypt.BCryptAlgorithm = BCryptAlgorithm;
-
---[[
-	Pre allocated Algorithm objects
---]]
-
-BCrypt.RSAAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RSA_ALGORITHM);
-BCrypt.RSASignAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RSA_SIGN_ALGORITHM);
-
-BCrypt.DHAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DH_ALGORITHM);
-BCrypt.DSAAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DSA_ALGORITHM);
-BCrypt.RC2Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RC2_ALGORITHM);
-BCrypt.RC4Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RC4_ALGORITHM);
-
-BCrypt.AESAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_AES_ALGORITHM);
-BCrypt.AESGMACAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_AES_GMAC_ALGORITHM);
-
-BCrypt.DESAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DES_ALGORITHM);
-BCrypt.DESXAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_DESX_ALGORITHM);
-BCrypt.DES3Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_3DES_ALGORITHM);
-BCrypt.DES3_112Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_3DES_112_ALGORITHM);
-
-BCrypt.MD2Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_MD2_ALGORITHM);
-BCrypt.MD4Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_MD4_ALGORITHM);
-BCrypt.MD5Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_MD5_ALGORITHM);
-
-BCrypt.SHA1Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA1_ALGORITHM);
-BCrypt.SHA256Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA256_ALGORITHM);
-BCrypt.SHA384Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA384_ALGORITHM);
-BCrypt.SHA512Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_SHA512_ALGORITHM);
-
-BCrypt.ECDSA_P256Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDSA_P256_ALGORITHM);
-BCrypt.ECDSA_P384Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDSA_P384_ALGORITHM);
-BCrypt.ECDSA_P521Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDSA_P521_ALGORITHM);
-BCrypt.ECDH_P256Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDH_P256_ALGORITHM);
-BCrypt.ECDH_P384Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDH_P384_ALGORITHM);
-BCrypt.ECDH_P521Algorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_ECDH_P521_ALGORITHM);
-
-
-BCrypt.RNGAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_ALGORITHM);
-BCrypt.RNGFIPS186DSAAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_FIPS186_DSA_ALGORITHM);
-BCrypt.RNGDUALECAlgorithm = BCrypt.BCryptAlgorithm(BCrypt.BCRYPT_RNG_DUAL_EC_ALGORITHM);
-
-
-
---[[
-	Convenience Functions
---]]
-
-BCrypt.GetRandomBytes = function(howmany)
-	howmany = howmany or 4
-
-	local rngBuff = ffi.new("uint8_t[?]", howmany)
-
-	local status =  BCLib.BCryptGenRandom(nil, rngBuff, howmany, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-	if status >= 0 then
-		return rngBuff, howmany
-	end
-
-	return nil, status
-end
-
 
 
 return BCrypt

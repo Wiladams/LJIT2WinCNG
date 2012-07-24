@@ -1,9 +1,7 @@
---package.path = package.path..";..\\Bhut\\?.lua;..\\Bhut\\core\\?.lua";
 
 local ffi = require "ffi"
 
-local BCrypt = require "BCrypt"
-
+local BCrypt = require "BCryptUtils"
 
 
 function test_RngAlgorithm()
@@ -12,15 +10,6 @@ function test_RngAlgorithm()
 	print("Algo: ",rngalgo);
 end
 
---print("Algorithm Handle: ", rngHandle);
-
-local function bintohex(bytes, len)
-	local str = ffi.string(bytes, len)
-
-	return (str:gsub('(.)', function(c)
-		return string.format('%02x', string.byte(c))
-	end))
-end
 
 function test_RandomBytes()
 	for j=1,5 do
@@ -37,25 +26,24 @@ function test_RandomBytes()
 	end
 end
 
-function test_sha1_hash()
-	local sh1, err = BCrypt.SHA1Algorithm:CreateHash();
 
-print("SHA1, status: ", sh1, tonumber(status));
 
-	--print(sh1:GetHashLength());
+function test_digests()
 
-	local outlen = sh1:GetHashDigestLength();
-	local outbuff = ffi.new("uint8_t[?]", outlen);
+	local content = "Take this as the first input to be hashed"
 
-	sh1:HashMore("Take this as the first input to be hashed");
-	sh1:Finish(outbuff, outlen);
+	print("SHA1: ", BCrypt.SHA1(content));
+	print("SHA256: ", BCrypt.SHA256(content));
+	print("SHA384: ", BCrypt.SHA384(content));
+	print("SHA512: ", BCrypt.SHA512(content));
 
-	local hex = bintohex(outbuff, outlen);
+	print("MD2: ", BCrypt.MD2(content));
+	print("MD4: ", BCrypt.MD4(content));
+	print("MD5: ", BCrypt.MD5(content));
 
-	print(hex);
 end
 
 
 --test_RandomBytes();
 
-test_sha1_hash();
+test_digests();

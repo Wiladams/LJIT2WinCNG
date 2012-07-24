@@ -40,6 +40,7 @@ typedef uint64_t		ULONGLONG;
 
 // Some pointer types
 typedef uint8_t	*		PUCHAR;
+typedef uint8_t	*		PBYTE;
 typedef const uint8_t *	PCUCHAR;
 typedef unsigned int	*PUINT;
 typedef uint32_t *		PUINT32;
@@ -80,3 +81,10 @@ typedef void *			HANDLE;
 ]]
 
 
+ffi.cdef[[
+typedef struct _FILETIME
+{
+    DWORD dwLowDateTime;
+    DWORD dwHighDateTime;
+} 	FILETIME;
+]]

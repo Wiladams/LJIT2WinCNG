@@ -55,10 +55,31 @@ local function AnsiToUnicode16(in_Src)
 	return buff;
 end
 
+local function Unicode16ToAnsi(in_Src)
+	local srcShorts = ffi.cast("const uint16_t *", in_Src)
+
+	-- find out how many characters needed
+	local bytesneeded = kernel32.WideCharToMultiByte(CP_ACP, 0, srcShorts, -1, nil, 0, nil, nil);
+--print("bytesneeded: ", bytesneeded);
+
+	if bytesneeded <= 0 then
+		return nil;
+	end
+
+	local buff = ffi.new("uint8_t[?]", bytesneeded+1)
+	local byteswritten = kernel32.WideCharToMultiByte(CP_ACP, 0, srcShorts, -1, buff, bytesneeded, nil, nil);
+	buff[byteswritten] = 0
+
+--print("charswritten: ", byteswritten)
+
+	return ffi.string(buff, byteswritten-1);
+end
+
 
 return {
 	Lib = kernel32,
 
 	-- Local functions
 	AnsiToUnicode16 = AnsiToUnicode16,
-	}
+	Unicode16ToAnsi = Unicode16ToAnsi,
+}
